@@ -6,6 +6,7 @@ class Expresso {
   constructor() {
     this.server = http.createServer();
     this.routes = {};
+    this.middleware = [];
 
     this.server.on("request", (req, res) => {
       // send a file back to the client
@@ -20,7 +21,7 @@ class Expresso {
         fileReadStream.pipe(res);
       };
 
-      // send status code to client
+      // send status code  to client
       res.status = (code) => {
         res.statusCode = code;
         return res;
@@ -32,13 +33,25 @@ class Expresso {
         res.end(JSON.stringify(data));
       };
 
-      if (!this.routes[req.method.toLowerCase() + req.url](req, res)) {
-        return res
-          .status(404)
-          .json({ error: `cannot ${req.method} ${req.url}` });
-      }
+      // Run all middleware functions before corresponding routes
 
-      this.routes[req.method.toLowerCase() + req.url](req, res);
+      const runMiddleware = (req, res, middleware, index) => {
+        if (index === middleware.length) {
+          if (!this.routes[req.method.toLowerCase() + req.url](req, res)) {
+            return res
+              .status(404)
+              .json({ error: `cannot ${req.method} ${req.url}` });
+          }
+
+          this.routes[req.method.toLowerCase() + req.url](req, res);
+        } else {
+          middleware[index](req, res, () => {
+            runMiddleware(req, res, middleware, index + 1);
+          });
+        }
+      };
+
+      runMiddleware(req, res, this.middleware, 0);
     });
   }
 
@@ -46,6 +59,11 @@ class Expresso {
   route(method, path, callback) {
     // {"get/": () => {}, "post/upload": () => {}}
     this.routes[method + path] = callback;
+  }
+
+  // beforeEach method
+  beforeEach(callback) {
+    this.middleware.push(callback);
   }
 
   // listen method
