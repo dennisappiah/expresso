@@ -11,6 +11,7 @@ class Expresso {
       // send a file back to the client
       res.sendFile = async (path, mime) => {
         const fileHandle = await fs.open(path, "r");
+        // fileReadstream
         const fileReadStream = fileHandle.createReadStream();
 
         res.setHeader("Content-Type", mime);
